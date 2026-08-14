@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>限定遠隔操作</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body class="dashboard-body">
+<main class="app-container">
+  <div class="app-header">
+    <div>
+      <p class="app-eyebrow">ENVIRONMENT MONITOR · RESTRICTED CONTROL</p>
+      <h1 class="app-title">管理者限定操作</h1>
+      <p class="app-subtitle">通常認証に加え、共有管理パスワードによる一時昇格が必要です。</p>
+    </div>
+    <a class="btn btn-outline-primary" href="{{ url_for('index') }}">ダッシュボードへ戻る</a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}<div class="alert alert-{{ category }}">{{ message }}</div>{% endfor %}
+  {% endwith %}
+
+  {% if not admin_enabled %}
+  <section class="surface-panel p-4">
+    <h2 class="h5">管理機能は無効です</h2>
+    <p class="mb-0">サーバー側の <code>ADMIN_PASSWORD_HASH</code> が未設定です。平文パスワードは設定ファイルへ保存しません。</p>
+  </section>
+  {% elif not admin_state %}
+  <section class="surface-panel p-4" style="max-width:720px">
+    <h2 class="h5 mb-3">一時的に管理者へ昇格</h2>
+    <p>通常ログイン済みの利用者だけが昇格できます。無操作 {{ idle_minutes }} 分、最長 {{ absolute_minutes }} 分で自動失効します。</p>
+    <form method="post" action="{{ url_for('admin_elevate') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="form-label fw-bold" for="admin-password">共有管理パスワード</label>
+      <input class="form-control mb-3" id="admin-password" name="password" type="password" autocomplete="current-password" required>
+      <button class="btn btn-primary" type="submit">管理者権限を有効化</button>
+    </form>
+  </section>
+  {% else %}
+  {% set online_devices = devices|selectattr('control_online')|list %}
+  {% macro device_options() -%}
+    {% for d in devices %}
+    <option value="{{ d.device_id }}" {% if not d.control_online %}disabled{% endif %}>{{ d.display_name }} — {{ 'オンライン' if d.control_online else 'オフライン' }}</option>
+    {% endfor %}
+  {%- endmacro %}
+  <div class="alert alert-warning d-flex justify-content-between align-items-center gap-3">
+    <span>管理者権限が有効です。無操作残り約 {{ (admin_state.idle_remaining / 60)|round(0, 'ceil')|int }} 分／絶対期限残り約 {{ (admin_state.absolute_remaining / 60)|round(0, 'ceil')|int }} 分</span>
+    <form method="post" action="{{ url_for('admin_logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-sm btn-outline-dark" type="submit">権限を解除</button>
+    </form>
+  </div>
+
+  <section class="surface-panel p-4 mb-4">
+    <h2 class="h5">状態確認</h2>
+    <p class="text-muted">Piへ状態報告を要求します。電源状態は、Piから返るイベントで判定します。</p>
+    <form method="post" action="{{ url_for('admin_command') }}" class="row g-3 align-items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="command" value="status">
+      <div class="col-md-8"><label class="form-label">対象Pi</label><select class="form-select" name="device_id" required>{{ device_options() }}</select><div class="form-text">制御許可済みで、直近30秒以内に応答した実Piだけ操作できます。</div></div>
+      <div class="col-md-4"><button class="btn btn-primary w-100" type="submit" {% if not online_devices %}disabled{% endif %}>状態確認を要求</button></div>
+    </form>
+  </section>
+
+  <section class="surface-panel p-4 mb-4 border border-danger-subtle">
+    <h2 class="h5 text-danger">再起動・シャットダウン</h2>
+    <p class="text-muted">危険操作は、操作ごとのパスワード再入力と確認語が必要です。キュー登録後もPi側で期限・重複を検証します。</p>
+    {% for action, label in [('restart', '再起動'), ('shutdown', 'シャットダウン')] %}
+    <form method="post" action="{{ url_for('admin_command') }}" class="row g-3 align-items-end mb-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="command" value="{{ action }}">
+      <div class="col-lg-3"><label class="form-label">対象Pi</label><select class="form-select" name="device_id" required>{{ device_options() }}</select></div>
+      <div class="col-lg-3"><label class="form-label">管理パスワード再入力</label><input class="form-control" name="password" type="password" autocomplete="current-password" required></div>
+      <div class="col-lg-3"><label class="form-label">確認語「{{ action|upper }}」</label><input class="form-control" name="confirm_text" required></div>
+      <div class="col-lg-3"><button class="btn btn-danger w-100" type="submit" {% if not online_devices %}disabled{% endif %}>{{ label }}要求を登録</button></div>
+    </form>
+    {% endfor %}
+  </section>
+
+  <section class="surface-panel p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center"><h2 class="h5">監視通知</h2><span id="monitorRefreshState" class="small text-muted">3秒ごとに自動更新</span></div>
+    <p class="text-muted small">異常のopenとrecoveredを記録します。Webhook未設定時もこの画面とjournalへ残ります。</p>
+    <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>発生時刻</th><th>Pi</th><th>コード</th><th>重要度</th><th>状態</th><th>通知</th></tr></thead><tbody id="monitorEventBody"><tr><td colspan="6">読み込み中…</td></tr></tbody></table></div>
+  </section>
+
+  <section class="surface-panel p-4">
+    <div class="d-flex justify-content-between align-items-center"><h2 class="h5">操作履歴</h2><span id="historyRefreshState" class="small text-muted">3秒ごとに自動更新</span></div>
+    <div class="table-responsive"><table class="table table-sm align-middle"><thead><tr><th>要求時刻</th><th>Pi</th><th>操作</th><th>状態</th><th>要求者</th><th>request_id</th></tr></thead><tbody id="commandHistoryBody">
+    {% for c in commands %}<tr><td>{{ c.requested_at|jst_datetime }}</td><td>{{ c.display_name }}</td><td>{{ c.command }}</td><td><span class="badge text-bg-{{ 'success' if c.status == 'completed' else 'danger' if c.status == 'rejected' else 'warning' if c.status in ['queued', 'accepted', 'shutting_down'] else 'secondary' }}">{{ c.status }}</span></td><td>{{ c.requested_by }}</td><td><code>{{ c.request_id }}</code></td></tr>{% else %}<tr><td colspan="6">履歴はありません。</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  {% endif %}
+
+  {% if admin_state %}
+  <script>
+  (() => {
+    const body = document.getElementById('commandHistoryBody');
+    const state = document.getElementById('historyRefreshState');
+    const colors = {completed:'success', rejected:'danger', queued:'warning', accepted:'warning', shutting_down:'warning', outcome_unknown:'secondary'};
+    let timer;
+    const cell = (text, tag='td') => { const el=document.createElement(tag); el.textContent=text ?? ''; return el; };
+    async function refreshMonitor() {
+      const monitorBody=document.getElementById('monitorEventBody'); const monitorState=document.getElementById('monitorRefreshState');
+      try {
+        const response=await fetch('{{ url_for("admin_monitor_events_json") }}',{headers:{Accept:'application/json'},cache:'no-store'});
+        if (response.status===403) { monitorState.textContent='管理者権限が失効しました。'; return; }
+        if (!response.ok) throw new Error('HTTP '+response.status);
+        const payload=await response.json(); monitorBody.replaceChildren();
+        if (!payload.events.length) { const row=document.createElement('tr'); const td=cell('監視イベントはありません。'); td.colSpan=6; row.append(td); monitorBody.append(row); }
+        for (const item of payload.events) {
+          const row=document.createElement('tr'); row.append(cell(item.occurred_at),cell(item.display_name),cell(item.event_code));
+          const sev=document.createElement('td'); const badge=document.createElement('span'); const sevColor={critical:'danger',error:'danger',warning:'warning',info:'info'}; badge.className='badge text-bg-'+(sevColor[item.severity]||'secondary'); badge.textContent=item.severity; sev.append(badge); row.append(sev);
+          row.append(cell(item.event_state),cell(item.notification)); monitorBody.append(row);
+        }
+        monitorState.textContent='更新: '+new Date().toLocaleTimeString('ja-JP');
+      } catch (error) { monitorState.textContent='監視通知の更新に失敗しました。再試行中…'; }
+    }
+
+    async function refreshHistory() {
+      try {
+        const response = await fetch('{{ url_for("admin_commands_json") }}', {headers:{Accept:'application/json'}, cache:'no-store'});
+        if (response.status === 403) { state.textContent='管理者権限が失効しました。再読み込みしてください。'; clearInterval(timer); return; }
+        if (!response.ok) throw new Error('HTTP '+response.status);
+        const payload = await response.json();
+        body.replaceChildren();
+        if (!payload.commands.length) { const row=document.createElement('tr'); const td=cell('履歴はありません。'); td.colSpan=6; row.append(td); body.append(row); }
+        for (const item of payload.commands) {
+          const row=document.createElement('tr');
+          row.append(cell(item.requested_at), cell(item.display_name), cell(item.command));
+          const statusCell=document.createElement('td'); const badge=document.createElement('span');
+          badge.className='badge text-bg-'+(colors[item.command_status] || 'secondary'); badge.textContent=item.command_status; statusCell.append(badge); row.append(statusCell);
+          row.append(cell(item.requested_by)); const idCell=document.createElement('td'); const code=document.createElement('code'); code.textContent=item.request_id; idCell.append(code); row.append(idCell); body.append(row);
+        }
+        state.textContent='更新: '+new Date().toLocaleTimeString('ja-JP');
+      } catch (error) { state.textContent='履歴更新に失敗しました。再試行中…'; }
+    }
+    timer=setInterval(() => { refreshHistory(); refreshMonitor(); }, 3000); refreshHistory(); refreshMonitor();
+  })();
+  </script>
+  {% endif %}
+  <p class="text-center text-muted mt-4">System Ver.{{ system_version }}</p>
+</main>
+</body>
+</html>

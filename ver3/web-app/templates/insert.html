@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ver3 手入力データ</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body class="dashboard-body">
+<main class="app-container" style="max-width: 960px;">
+    <div class="app-header">
+        <div>
+            <p class="app-eyebrow">MANUAL READING · VER3</p>
+            <h1 class="app-title">手入力データ</h1>
+            <p class="app-subtitle">入力者は認証情報から決定し、PostgreSQLのACK後に完了します。</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('index') }}">検索画面へ戻る</a>
+    </div>
+    <div class="alert alert-info">
+        入力者: {{ identity.display_name }}（{{ identity.operator_id }}）／空欄はNULLとして保存します。
+        物理範囲外は拒否し、危険値は確認後にwarningとして保存します。
+    </div>
+    {% for message in errors %}<div class="alert alert-danger">{{ message }}</div>{% endfor %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}<div class="alert alert-{{ category }}">{{ message }}</div>{% endfor %}
+    {% endwith %}
+    {% if requires_confirmation %}
+    <div class="alert alert-warning">
+        危険値候補: {% for item in dangers %}{{ item }}{% if not loop.last %}、{% endif %}{% endfor %}。
+        内容を確認し、下の確認欄を選んでもう一度保存してください。
+    </div>
+    {% endif %}
+
+    <form method="POST" class="surface-panel filter-panel" id="manualForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="message_id" value="{{ message_id }}">
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label class="form-label fw-bold" for="target_device_id">所属Pi</label>
+                <select class="form-select" id="target_device_id" name="target_device_id" required>
+                    <option value="">選択してください</option>
+                    {% for device in devices %}
+                    <option value="{{ device.device_id }}" {% if selected_device_id == device.device_id|string %}selected{% endif %}>
+                        {{ device.display_name }}（{{ (device.device_id|string)[:8] }}…）
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold" for="measured_at">計測時刻</label>
+                <input class="form-control" type="datetime-local" id="measured_at" name="measured_at" value="{{ measured_at }}" step="60">
+                <div class="form-text">未指定の場合はサーバー受信時刻を使用します。</div>
+            </div>
+        </div>
+        <div class="row g-3">
+            {% for sensor in sensor_columns %}
+            <div class="col-md-6"><div class="sensor-input-card">
+                <label class="form-label fw-semibold" for="{{ sensor }}">{{ sensor_labels[sensor] }}<br><span class="text-secondary fw-normal">{{ sensor }}</span></label>
+                <input class="form-control" type="number" step="any" id="{{ sensor }}" name="{{ sensor }}"
+                       min="{{ plausible_ranges[sensor][0] }}" max="{{ plausible_ranges[sensor][1] }}"
+                       value="{{ form_values[sensor] }}" placeholder="数値を入力（任意）">
+                <div class="range-note mt-2">入力可能範囲 {{ plausible_ranges[sensor][0] }}〜{{ plausible_ranges[sensor][1] }}</div>
+            </div></div>
+            {% endfor %}
+        </div>
+        {% if requires_confirmation %}
+        <div class="form-check mt-4">
+            <input class="form-check-input" type="checkbox" id="warning_confirmed" name="warning_confirmed" required>
+            <label class="form-check-label fw-bold" for="warning_confirmed">危険値であることを確認して保存する</label>
+        </div>
+        {% endif %}
+        <div class="sticky-actions mt-4 d-flex gap-2 justify-content-end">
+            <a class="btn btn-outline-secondary" href="{{ url_for('index') }}">キャンセル</a>
+            <button type="submit" class="btn btn-primary" id="saveButton">
+                <span id="saveSpinner" class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span>
+                PostgreSQLへ保存
+            </button>
+        </div>
+    </form>
+    <footer class="text-center text-secondary small py-4">System Ver.{{ system_version }} · PostgreSQL · {{ build_channel|capitalize }}</footer>
+</main>
+<script>
+document.getElementById('manualForm').addEventListener('submit', function () {
+  const button = document.getElementById('saveButton');
+  document.getElementById('saveSpinner').classList.remove('d-none');
+  button.disabled = true;
+  button.lastChild.textContent = ' DB保存確認中…';
+});
+</script>
+</body>
+</html>

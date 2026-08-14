@@ -1,0 +1,2 @@
+# Ver3 direct backend, retained as a fallback backend.
+rpi-sensor-lib[direct]==0.2.4

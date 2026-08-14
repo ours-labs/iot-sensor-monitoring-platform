@@ -1,0 +1,4 @@
+# Shared dependencies for the Ver3 Pi4gpio backend.
+# Install a verified pi4gpio-client wheel after checking its SHA-256 digest.
+# Install pi4gpio-client into the same virtual environment.
+-r requirements-pi-common.txt

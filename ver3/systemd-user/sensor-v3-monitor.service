@@ -1,0 +1,17 @@
+[Unit]
+Description=Sensor Ver3 device monitor (isolated)
+After=sensor-v3-postgres.service
+Requires=sensor-v3-postgres.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ver3-postgres-runtime/current/web-app
+EnvironmentFile=%h/ver3-postgres-runtime/env/monitor.env
+Environment=EXPECTED_SYSTEM_MAJOR=3
+Environment=SYSTEM_BUILD_CHANNEL=production
+ExecStart=%h/ver3-postgres-runtime/current/.venv/bin/python monitor.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

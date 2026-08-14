@@ -1,0 +1,16 @@
+[Unit]
+Description=Sensor Ver3 isolated PostgreSQL 16
+After=network.target
+
+[Service]
+Type=notify
+Environment=LD_LIBRARY_PATH=%h/ver3-postgres-runtime/rootfs/usr/lib/x86_64-linux-gnu
+ExecStart=%h/ver3-postgres-runtime/rootfs/usr/lib/postgresql/16/bin/postgres -D %h/ver3-postgres-runtime/data -p 55432 -h 127.0.0.1 -k %h/ver3-postgres-runtime/socket
+ExecReload=/bin/kill -HUP $MAINPID
+KillSignal=SIGINT
+TimeoutStopSec=120
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

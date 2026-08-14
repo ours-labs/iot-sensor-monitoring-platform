@@ -1,0 +1,18 @@
+[Unit]
+Description=Sensor Monitor Ver.3 Production (sanitized template)
+After=sensor-v3-server.service
+
+[Service]
+Type=simple
+User=sensorapp
+WorkingDirectory=/opt/sensor-monitoring/ver3/web-app
+EnvironmentFile=-/etc/sensor-monitoring/monitor.env
+Environment=EXPECTED_SYSTEM_MAJOR=3
+Environment=SYSTEM_BUILD_CHANNEL=production
+ExecStartPre=/bin/sh -c 'test -x /opt/sensor-monitoring/ver3/.venv/bin/python || { echo "[CFG-S001] Ver3 INSTALL_ROOT or Python virtual environment is unavailable" >&2; exit 78; }'
+ExecStart=/opt/sensor-monitoring/ver3/.venv/bin/python monitor.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

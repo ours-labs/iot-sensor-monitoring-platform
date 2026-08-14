@@ -1,0 +1,19 @@
+[Unit]
+Description=Raspberry Pi limited control agent Ver.3 Production
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sensorapp
+WorkingDirectory=/opt/sensor-monitoring/ver3
+EnvironmentFile=-/etc/sensor-monitoring/control.env
+Environment=EXPECTED_SYSTEM_MAJOR=3
+Environment=SYSTEM_BUILD_CHANNEL=production
+ExecStartPre=/bin/sh -c 'test -x /opt/sensor-monitoring/ver3/.venv/bin/python || { echo "[CFG-R001] Ver3 control agent runtime is missing" >&2; exit 78; }'
+ExecStart=/opt/sensor-monitoring/ver3/.venv/bin/python control_agent.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

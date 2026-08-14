@@ -1,0 +1,21 @@
+# Repository-wide generated and private files
+**/__pycache__/
+**/*.py[cod]
+**/.gradle/
+**/.venv/
+**/build/
+**/.idea/
+**/local.properties
+**/secrets.properties
+**/.env
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+**/*.csv
+**/*.apk
+**/*.pid
+**/status_report_*.json
+**/private-results/
+**/private-evidence/
+**/.monitor-state/
+**/.audit-cache/

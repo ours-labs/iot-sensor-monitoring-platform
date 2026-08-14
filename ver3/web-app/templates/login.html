@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ログイン - センサーデータ検索</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body class="dashboard-body">
+    <div class="app-container" style="max-width: 440px; padding-top: 10vh;">
+        <p class="app-eyebrow">ENVIRONMENT MONITOR</p>
+        <h1 class="app-title mb-4">センサー環境モニター Ver3</h1>
+        {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+        <form method="POST" class="surface-panel filter-panel">
+            <div class="mb-3">
+                <label class="form-label" for="login_key">APIキー</label>
+                <input type="password" id="login_key" name="key" class="form-control" autofocus required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">ログイン</button>
+        </form>
+        <p class="text-center text-secondary small mt-4">System Ver.{{ system_version }}</p>
+    </div>
+</body>
+</html>

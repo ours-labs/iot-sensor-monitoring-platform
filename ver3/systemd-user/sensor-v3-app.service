@@ -1,0 +1,26 @@
+[Unit]
+Description=Sensor Ver3 Gunicorn web app (isolated)
+After=sensor-v3-postgres.service
+Requires=sensor-v3-postgres.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/ver3-postgres-runtime/current/web-app
+EnvironmentFile=%h/ver3-postgres-runtime/env/web.env
+Environment=EXPECTED_SYSTEM_MAJOR=3
+Environment=SYSTEM_BUILD_CHANNEL=production
+ExecStart=%h/ver3-postgres-runtime/current/.venv/bin/gunicorn \
+    --bind 127.0.0.1:5001 \
+    --workers 2 \
+    --threads 4 \
+    --timeout 30 \
+    --graceful-timeout 30 \
+    --access-logfile - \
+    --error-logfile - \
+    app:app
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=40
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,2 @@
+# Sensor interpretation layer shared by the direct and Pi4gpio backends.
+rpi-sensor-lib[bme280]==0.2.4
