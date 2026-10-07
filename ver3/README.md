@@ -1,5 +1,7 @@
 # Sensor Monitoring Ver3
 
+English | [日本語](README.ja.md)
+
 This directory contains the Ver3 Raspberry Pi client, TCP ingestion server, PostgreSQL persistence layer, Flask dashboard, monitoring logic, and deployment templates.
 
 Ver3 uses system version `3.0.0`, protocol version `3`, and database schema version `3`. A mismatch fails closed. The supported hardware path uses the Pi4gpio backend; the direct backend remains an explicit fallback.
@@ -7,7 +9,7 @@ Ver3 uses system version `3.0.0`, protocol version `3`, and database schema vers
 ## Core behavior
 
 - PostgreSQL is the server-side source of truth.
-- `message_id` and commit-after-ACK provide at-least-once delivery with deduplication.
+- `message_id` and ACK-after-commit provide at-least-once delivery with deduplication.
 - Each device has an immutable `device_id`, a mutable display name, declared capabilities, and a persistent `device_seq`.
 - The Raspberry Pi stores unsent messages in a SQLite outbox and retries them safely.
 - Measurement, receipt, and storage timestamps are recorded separately.

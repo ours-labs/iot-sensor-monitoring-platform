@@ -1,5 +1,7 @@
 # SensorDataApp Ver3
 
+English | [日本語](README.ja.md)
+
 This Kotlin and Jetpack Compose Android client is designed for the Ver3 server. It provides current readings, alert views, minute-based time-window averages, manual readings, and limited device administration.
 
 Production hosts, user mappings, and API keys are intentionally absent. Configure the server host in the user's `~/.gradle/gradle.properties` file:

@@ -1,5 +1,7 @@
 # IoT Sensor Monitoring Platform
 
+English | [日本語](README.ja.md)
+
 A production-oriented Ver3 portfolio project for collecting environmental sensor data from Raspberry Pi devices, storing it reliably in PostgreSQL, and presenting it through a Flask dashboard and an Android application.
 
 This repository contains the current Ver3 implementation.
